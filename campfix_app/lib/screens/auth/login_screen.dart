@@ -5,9 +5,9 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/campfix_button.dart';
 import '../../widgets/campfix_text_field.dart';
 import '../../widgets/campfix_auth_header.dart';
-import '../common/placeholder_home_screen.dart';
+import '../../core/routing/role_router.dart';
 import 'register_screen.dart';
-import 'forgot_password_screen.dart';
+import 'forgot_password_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,7 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PlaceholderHomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => RoleRouter.shellFor(authProvider.currentRole),
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

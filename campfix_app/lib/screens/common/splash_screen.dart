@@ -1,10 +1,10 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/routing/role_router.dart';
 import '../../providers/auth_provider.dart';
 import 'onboarding_screen.dart';
-import 'placeholder_home_screen.dart';
 import '../auth/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -35,24 +35,35 @@ class _SplashScreenState extends State<SplashScreen>
     _navigateNext();
   }
 
-  Future<void> _navigateNext() async {
+    Future<void> _navigateNext() async {
     // Minimum splash duration for a smooth, intentional feel (not a delay hack).
-    await Future.delayed(const Duration(milliseconds: 4000));
+    await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
 
-    final authStatus = context.read<AuthProvider>().status;
+    try {
+      final authProvider = context.read<AuthProvider>();
 
-    if (authStatus == AuthStatus.authenticated) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PlaceholderHomeScreen()),
-      );
-    } else {
-      final seenOnboarding = await _hasSeenOnboarding();
+      if (authProvider.status == AuthStatus.authenticated) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => RoleRouter.shellFor(authProvider.currentRole),
+          ),
+        );
+      } else {
+        final seenOnboarding = await _hasSeenOnboarding();
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => seenOnboarding ? const LoginScreen() : const OnboardingScreen(),
+          ),
+        );
+      }
+    } catch (_) {
+      // Session refresh or auth check failed (e.g. no internet).
+      // Fail safe to Login rather than crashing.
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => seenOnboarding ? const LoginScreen() : const OnboardingScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     }
   }

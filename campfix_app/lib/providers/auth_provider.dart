@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../repositories/auth_repository.dart';
 import '../core/errors/app_exception.dart';
+import '../models/app_role.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -19,6 +20,15 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  /// Temporary: reads role from Supabase Auth user_metadata.
+  /// Phase 6 will replace this with a real query to the `profiles` table.
+  AppRole get currentRole {
+    final metadata = _authRepository.currentUser?.userMetadata;
+    return AppRoleX.fromString(metadata?['role'] as String?);
+  }
+
+  String? get currentUserEmail => _authRepository.currentUser?.email;
+  
   void _init() {
     _status = _authRepository.isLoggedIn
         ? AuthStatus.authenticated

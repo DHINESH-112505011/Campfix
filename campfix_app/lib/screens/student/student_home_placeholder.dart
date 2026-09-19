@@ -12,6 +12,7 @@ import '../../widgets/campfix_section_header.dart';
 import '../../widgets/campfix_category_chip.dart';
 import '../../widgets/campfix_empty_state.dart';
 import '../../core/theme/app_colors.dart';
+import 'report/report_wizard_screen.dart';    
 
 class StudentHomePlaceholder extends StatefulWidget {
   const StudentHomePlaceholder({super.key});
@@ -69,12 +70,13 @@ class _StudentHomePlaceholderState extends State<StudentHomePlaceholder> {
               const SizedBox(height: AppSpacing.xl),
 
               // Primary CTA
-              CampFixCard(
-                onTap: () {
-                  // Wired to real Report flow in Phase 5
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Report flow coming in Phase 5')),
+                            CampFixCard(
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ReportWizardScreen()),
                   );
+                  if (mounted) _onRefresh();
+
                 },
                 child: Row(
                   children: [
@@ -158,12 +160,15 @@ class _StudentHomePlaceholderState extends State<StudentHomePlaceholder> {
                   separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
                   itemBuilder: (context, index) {
                     final category = ComplaintCategory.defaults[index];
-                    return CampFixCategoryChip(
+                                        return CampFixCategoryChip(
                       category: category,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('${category.name} - Report flow in Phase 5')),
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ReportWizardScreen(initialCategoryId: category.id),
+                          ),
                         );
+                        if (mounted) _onRefresh();
                       },
                     );
                   },

@@ -1,23 +1,11 @@
 import '../models/complaint.dart';
+import '../models/complaint_draft.dart';
 
 /// Provides complaint data to the UI. Currently returns realistic mock
-/// data so Phase 4 UI can be fully built and tested. Phase 8 will replace
-/// the method bodies with real API calls - the method signatures below
-/// are designed to stay stable so screens never need to change.
+/// data so Phase 4/5 UI can be fully built and tested. Phase 8 will
+/// replace the method bodies with real API calls - the method signatures
+/// below are designed to stay stable so screens never need to change.
 class ComplaintRepository {
-  Future<List<Complaint>> getMyComplaints() async {
-    await Future.delayed(const Duration(milliseconds: 400)); // simulate network
-    return _mockComplaints;
-  }
-
-  Future<({int total, int active, int resolved})> getMyStats() async {
-    final complaints = await getMyComplaints();
-    final total = complaints.length;
-    final resolved = complaints.where((c) => c.isResolved).length;
-    final active = complaints.where((c) => c.isActive).length;
-    return (total: total, active: active, resolved: resolved);
-  }
-
   static final List<Complaint> _mockComplaints = [
     Complaint(
       id: '1',
@@ -59,4 +47,46 @@ class ComplaintRepository {
       updatedAt: DateTime.now().subtract(const Duration(days: 3)),
     ),
   ];
+
+  Future<List<Complaint>> getMyComplaints() async {
+    await Future.delayed(const Duration(milliseconds: 400)); // simulate network
+    return _mockComplaints;
+  }
+
+  Future<({int total, int active, int resolved})> getMyStats() async {
+    final complaints = await getMyComplaints();
+    final total = complaints.length;
+    final resolved = complaints.where((c) => c.isResolved).length;
+    final active = complaints.where((c) => c.isActive).length;
+    return (total: total, active: active, resolved: resolved);
+  }
+
+  /// Simulates submission and generates a mock complaint number.
+  /// Phase 8 will replace this with a real POST /api/complaints call,
+  /// and Phase 9 will add the actual Cloudinary image upload step here.
+  Future<String> submitComplaint(ComplaintDraft draft) async {
+    await Future.delayed(const Duration(milliseconds: 900)); // simulate network
+    final year = DateTime.now().year;
+    final sequence = (_mockComplaints.length + 1).toString().padLeft(5, '0');
+    final complaintNumber = 'CF-$year-$sequence';
+
+    _mockComplaints.insert(
+      0,
+      Complaint(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        complaintNumber: complaintNumber,
+        title: draft.title,
+        description: draft.description,
+        category: draft.categoryName ?? 'Other',
+        priority: draft.aiPriority ?? 'MEDIUM',
+        status: 'SUBMITTED',
+        building: draft.building,
+        room: draft.room,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    return complaintNumber;
+  }
 }

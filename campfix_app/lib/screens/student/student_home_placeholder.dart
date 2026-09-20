@@ -12,7 +12,9 @@ import '../../widgets/campfix_section_header.dart';
 import '../../widgets/campfix_category_chip.dart';
 import '../../widgets/campfix_empty_state.dart';
 import '../../core/theme/app_colors.dart';
-import 'report/report_wizard_screen.dart';    
+import 'report/report_wizard_screen.dart';
+import 'complaint_details_screen.dart';
+import 'complaints_list_screen.dart';
 
 class StudentHomePlaceholder extends StatefulWidget {
   const StudentHomePlaceholder({super.key});
@@ -180,12 +182,11 @@ class _StudentHomePlaceholderState extends State<StudentHomePlaceholder> {
               CampFixSectionHeader(
                 title: 'Recent Complaints',
                 actionLabel: 'View All',
-                onActionTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Complaints list coming in a later phase')),
-                  );
-                },
+                onActionTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ComplaintsListScreen()),
+                ),
               ),
+
               const SizedBox(height: AppSpacing.md),
               FutureBuilder<List<Complaint>>(
                 future: _complaintsFuture,
@@ -211,11 +212,11 @@ class _StudentHomePlaceholderState extends State<StudentHomePlaceholder> {
                             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                             child: CampFixComplaintCard(
                               complaint: c,
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Details for ${c.complaintNumber} coming in Phase 10')),
-                                );
-                              },
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ComplaintDetailsScreen(complaintId: c.id),
+                                ),
+                              ),
                             ),
                           ),
                         )

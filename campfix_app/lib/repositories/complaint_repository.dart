@@ -3,6 +3,7 @@ import '../core/network/api_exception.dart';
 import '../core/errors/app_exception.dart';
 import '../models/complaint.dart';
 import '../models/complaint_draft.dart';
+import '../models/timeline_event.dart';   
 
 /// Provides complaint data to the UI via the real backend API (Phase 8).
 /// Method signatures deliberately match the earlier mock implementation
@@ -15,6 +16,25 @@ class ComplaintRepository {
       final response = await _apiClient.get('/complaints');
       final items = (response['data']['items'] as List<dynamic>);
       return items.map((json) => Complaint.fromJson(json as Map<String, dynamic>)).toList();
+    } on ApiException catch (e) {
+      throw AppException(e.message);
+    }
+  }
+
+    Future<Complaint> getComplaintById(String id) async {
+    try {
+      final response = await _apiClient.get('/complaints/$id');
+      return Complaint.fromJson(response['data'] as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      throw AppException(e.message);
+    }
+  }
+
+  Future<List<TimelineEvent>> getTimeline(String complaintId) async {
+    try {
+      final response = await _apiClient.get('/complaints/$complaintId/timeline');
+      final items = response['data'] as List<dynamic>;
+      return items.map((json) => TimelineEvent.fromJson(json as Map<String, dynamic>)).toList();
     } on ApiException catch (e) {
       throw AppException(e.message);
     }

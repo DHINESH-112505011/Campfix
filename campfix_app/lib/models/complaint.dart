@@ -31,7 +31,10 @@ class Complaint {
       complaintNumber: json['complaint_number'] as String,
       title: json['title'] as String,
       description: json['description'] as String,
-      category: json['category'] as String,
+      // Backend currently returns category_id (UUID), not a name.
+      // Category name resolution via join lands in a later phase;
+      // ai_category is shown as a readable fallback until then.
+      category: (json['ai_category'] as String?) ?? 'Uncategorized',
       priority: json['priority'] as String,
       status: json['status'] as String,
       building: json['building'] as String? ?? '',
@@ -40,7 +43,7 @@ class Complaint {
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
   }
-
+  
   bool get isActive => !['RESOLVED', 'REJECTED', 'CANCELLED'].contains(status);
   bool get isResolved => status == 'RESOLVED';
 }

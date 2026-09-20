@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../models/complaint_draft.dart';
 import '../../../repositories/complaint_repository.dart';
-import 'report_step1_screen.dart';
+import '../../../repositories/upload_repository.dart';
+import 'report_step1_screen.dart';    
 import 'report_step2_screen.dart';
 import 'report_step3_screen.dart';
 import 'report_step4_screen.dart';
@@ -21,8 +22,9 @@ class ReportWizardScreen extends StatefulWidget {
 
 class _ReportWizardScreenState extends State<ReportWizardScreen> {
   final ComplaintRepository _repository = ComplaintRepository();
+  final UploadRepository _uploadRepository = UploadRepository();
   late final ComplaintDraft _draft;
-  int _currentStep = 0;
+  int _currentStep = 0; 
 
   @override
   void initState() {
@@ -33,11 +35,29 @@ class _ReportWizardScreenState extends State<ReportWizardScreen> {
   void _goToStep(int step) => setState(() => _currentStep = step);
 
   Future<void> _handleSubmit() async {
-    final complaintNumber = await _repository.submitComplaint(_draft);
+    final result = await _repository.submitComplaint(_draft);
+
+    // Image upload happens after the complaint is created (we need its ID),
+    // and is treated as best-effort - a failed upload never blocks the
+    // complaint from being considered submitted (§56 - never lose entered
+    // data, and here specifically: never lose a valid complaint over a
+    // secondary photo upload issue).
+    if (_draft.imageFile != null) {
+      try {
+        await _uploadRepository.uploadComplaintImage(
+          imageFile: _draft.imageFile!,
+          complaintId: result.id,
+        );
+      } catch (_) {
+        // Silently continue - complaint is already saved. A future phase
+        // can add a retry-upload affordance from the complaint details screen.
+      }
+    }
+
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => ReportSuccessScreen(complaintNumber: complaintNumber),
+        builder: (_) => ReportSuccessScreen(complaintNumber: result.complaintNumber),
       ),
     );
   }

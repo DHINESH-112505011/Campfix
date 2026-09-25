@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
+import '../../models/app_role.dart';
 import '../../models/complaint.dart';
 import '../../models/timeline_event.dart';
 import '../../repositories/complaint_repository.dart';
@@ -9,6 +12,8 @@ import '../../widgets/campfix_status_chip.dart';
 import '../../widgets/campfix_priority_badge.dart';
 import '../../widgets/campfix_timeline.dart';
 import '../../widgets/campfix_section_header.dart';
+import '../../widgets/campfix_button.dart';
+import '../../widgets/campfix_outlined_button.dart';
 import '../../core/errors/app_exception.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
@@ -26,6 +31,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   Complaint? _complaint;
   List<TimelineEvent> _timeline = [];
   bool _isLoading = true;
+  bool _isActionInProgress = false;
   String? _errorMessage;
 
   @override
@@ -56,6 +62,44 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
         _errorMessage = e.message;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _updateStatus(String newStatus, {String? confirmMessage}) async {
+    if (confirmMessage != null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Are you sure?'),
+          content: Text(confirmMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('No, Keep It'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Yes, Continue'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    setState(() => _isActionInProgress = true);
+    try {
+      final updated = await _repository.updateStatus(widget.complaintId, newStatus);
+      if (!mounted) return;
+      setState(() {
+        _complaint = updated;
+        _isActionInProgress = false;
+      });
+      await _loadData(); // refresh timeline to show the new entry
+    } on AppException catch (e) {
+      if (!mounted) return;
+      setState(() => _isActionInProgress = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -133,8 +177,98 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
             Text('No timeline events yet.', style: textTheme.bodyMedium)
           else
             CampFixTimeline(events: _timeline),
+
+          const SizedBox(height: AppSpacing.xxl),
+          Builder(builder: (context) {
+            final role = context.watch<AuthProvider>().currentRole;
+            if (role == AppRole.admin || role == AppRole.superAdmin) {
+              return Column(children: _buildAdminActions(complaint));
+            }
+            return Column(children: _buildStudentActions(complaint));
+          }),
         ],
       ),
     );
+  }
+
+  List<Widget> _buildAdminActions(Complaint complaint) {
+    final actions = <Widget>[];
+
+    if (complaint.status == 'SUBMITTED' ||
+        complaint.status == 'AI_CLASSIFIED' ||
+        complaint.status == 'ADMIN_REVIEW') {
+      actions.add(
+        CampFixOutlinedButton(
+          label: 'Reject Complaint',
+          icon: Icons.block_rounded,
+          onPressed: _isActionInProgress
+              ? null
+              : () => _updateStatus(
+                    'REJECTED',
+                    confirmMessage: 'Reject this complaint? This cannot be easily undone.',
+                  ),
+        ),
+      );
+    }
+
+    if (complaint.status == 'WORK_COMPLETED') {
+      actions.add(
+        CampFixButton(
+          label: 'Verify Work',
+          onPressed: _isActionInProgress ? null : () => _updateStatus('ADMIN_VERIFIED'),
+        ),
+      );
+    }
+
+    if (complaint.status == 'ADMIN_VERIFIED') {
+      if (actions.isNotEmpty) actions.add(const SizedBox(height: AppSpacing.sm));
+      actions.add(
+        CampFixButton(
+          label: 'Resolve Complaint',
+          onPressed: _isActionInProgress ? null : () => _updateStatus('RESOLVED'),
+        ),
+      );
+    }
+
+    return actions.isEmpty
+        ? []
+        : [
+            for (int i = 0; i < actions.length; i++) ...[
+              actions[i],
+              if (i < actions.length - 1) const SizedBox(height: AppSpacing.sm),
+            ],
+          ];
+  }
+
+  List<Widget> _buildStudentActions(Complaint complaint) {
+    final isActive = !['RESOLVED', 'REJECTED', 'CANCELLED'].contains(complaint.status);
+    final canCancel = isActive && complaint.status != 'IN_PROGRESS' && complaint.status != 'WORK_COMPLETED';
+    final canReopen = complaint.status == 'RESOLVED';
+
+    if (!canCancel && !canReopen) return [];
+
+    return [
+      if (canCancel)
+        CampFixOutlinedButton(
+          label: 'Cancel Complaint',
+          icon: Icons.close_rounded,
+          onPressed: _isActionInProgress
+              ? null
+              : () => _updateStatus(
+                    'CANCELLED',
+                    confirmMessage: 'Are you sure you want to cancel this complaint?',
+                  ),
+        ),
+      if (canReopen)
+        CampFixButton(
+          label: 'Problem Still Exists - Reopen',
+          onPressed: _isActionInProgress
+              ? null
+              : () => _updateStatus(
+                    'REOPENED',
+                    confirmMessage: 'This will reopen the complaint for admin review. Continue?',
+                  ),
+        ),
+    ];
   }
 }

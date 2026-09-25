@@ -30,6 +30,18 @@ class ComplaintRepository {
     }
   }
 
+  Future<Complaint> updateStatus(String complaintId, String newStatus) async {
+    try {
+      final response = await _apiClient.patch(
+        '/complaints/$complaintId/status',
+        body: {'status': newStatus},
+      );
+      return Complaint.fromJson(response['data'] as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      throw AppException(e.message);
+    }
+  }
+
   Future<List<TimelineEvent>> getTimeline(String complaintId) async {
     try {
       final response = await _apiClient.get('/complaints/$complaintId/timeline');

@@ -48,4 +48,36 @@ class AssignmentRepository {
       throw AppException(e.message);
     }
   }
+
+  Future<void> assignStaff({
+    required String complaintId,
+    required String staffId,
+    String? notes,
+  }) async {
+    try {
+      await _apiClient.post('/assignments/assign', body: {
+        'complaintId': complaintId,
+        'staffId': staffId,
+        'notes': notes,
+      });
+    } on ApiException catch (e) {
+      throw AppException(e.message);
+    }
+  }
+
+  Future<void> reassignStaff({
+    required String complaintId,
+    required String newStaffId,
+    String? notes,
+  }) async {
+    try {
+      await _apiClient.post('/assignments/reassign', body: {
+        'complaintId': complaintId,
+        'newStaffId': newStaffId,
+        'notes': notes,
+      });
+    } on ApiException catch (e) {
+      throw AppException(e.message);
+    }
+  }
 }

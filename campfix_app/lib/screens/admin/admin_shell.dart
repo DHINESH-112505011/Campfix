@@ -4,6 +4,7 @@ import '../../core/utils/responsive.dart';
 import '../../widgets/campfix_bottom_navigation.dart';
 import '../common/profile_placeholder_screen.dart';
 import 'admin_home_placeholder.dart';
+import 'admin_complaint_list_screen.dart';
 
 class _PlaceholderTab extends StatelessWidget {
   final String title;
@@ -32,7 +33,7 @@ class _AdminShellState extends State<AdminShell> {
 
   final List<Widget> _pages = const [
     AdminHomePlaceholder(),
-    _PlaceholderTab('Complaints'),
+    AdminComplaintListScreen(),
     _PlaceholderTab('Staff'),
     _PlaceholderTab('Users'),
     _PlaceholderTab('Analytics'),

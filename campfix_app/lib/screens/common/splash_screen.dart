@@ -44,6 +44,8 @@ class _SplashScreenState extends State<SplashScreen>
       final authProvider = context.read<AuthProvider>();
 
       if (authProvider.status == AuthStatus.authenticated) {
+        await authProvider.refreshProfile();
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => RoleRouter.shellFor(authProvider.currentRole),

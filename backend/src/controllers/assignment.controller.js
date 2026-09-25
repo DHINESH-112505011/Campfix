@@ -50,4 +50,41 @@ async function markCompleted(req, res, next) {
   }
 }
 
-module.exports = { listMyAssignments, acceptAssignment, startWork, markCompleted };
+async function assignStaff(req, res, next) {
+  try {
+    const { complaintId, staffId, notes } = req.body;
+    const assignment = await assignmentService.assignStaff({
+      complaintId,
+      staffId,
+      adminProfile: req.profile,
+      notes,
+    });
+    return success(res, { message: 'Staff assigned successfully', data: assignment, statusCode: 201 });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function reassignStaff(req, res, next) {
+  try {
+    const { complaintId, newStaffId, notes } = req.body;
+    const assignment = await assignmentService.reassignStaff({
+      complaintId,
+      newStaffId,
+      adminProfile: req.profile,
+      notes,
+    });
+    return success(res, { message: 'Staff reassigned successfully', data: assignment, statusCode: 201 });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  listMyAssignments,
+  acceptAssignment,
+  startWork,
+  markCompleted,
+  assignStaff,
+  reassignStaff,
+};

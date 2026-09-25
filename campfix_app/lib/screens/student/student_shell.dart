@@ -5,6 +5,7 @@ import '../../widgets/campfix_bottom_navigation.dart';
 import '../common/profile_placeholder_screen.dart';
 import 'student_home_placeholder.dart';
 import 'complaints_list_screen.dart';
+import 'report/report_wizard_screen.dart';
 
 class _PlaceholderTab extends StatelessWidget {
   final String title;
@@ -33,7 +34,7 @@ class _StudentShellState extends State<StudentShell> {
   final List<Widget> _pages = const [
     StudentHomePlaceholder(),
     ComplaintsListScreen(),
-    _PlaceholderTab('Report'),
+    ReportWizardScreen(),
     _PlaceholderTab('Notifications'),
     ProfilePlaceholderScreen(),
   ];

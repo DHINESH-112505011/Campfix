@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/profile_repository.dart';
 import '../core/errors/app_exception.dart';
 import '../models/app_role.dart';
 
@@ -7,10 +8,12 @@ enum AuthStatus { unknown, authenticated, unauthenticated }
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
+  final ProfileRepository _profileRepository = ProfileRepository();
 
   AuthStatus _status = AuthStatus.unknown;
   bool _isLoading = false;
   String? _errorMessage;
+  AppRole? _fetchedRole;
 
   AuthProvider() {
     _init();
@@ -20,12 +23,22 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  /// Temporary: reads role from Supabase Auth user_metadata.
-  /// Phase 6 will replace this with a real query to the `profiles` table.
-  AppRole get currentRole {
-    final metadata = _authRepository.currentUser?.userMetadata;
-    return AppRoleX.fromString(metadata?['role'] as String?);
-  }
+   /// The real, backend-verified role from the `profiles` table.
+  /// Must call refreshProfile() after login before this is reliable;
+  /// falls back to STUDENT (never a higher privilege) if not yet fetched.
+  AppRole get currentRole => _fetchedRole ?? AppRole.student;
+
+  Future<void> refreshProfile() async {
+    try {
+      final profile = await _profileRepository.getMyProfile();
+      _fetchedRole = AppRoleX.fromString(profile['role'] as String?);
+      notifyListeners();
+    } on AppException {
+      _fetchedRole = AppRole.student; // fail safe, never assume elevated access
+      notifyListeners();
+    }
+  }   
+
 
   String? get currentUserEmail => _authRepository.currentUser?.email;
   
@@ -34,16 +47,24 @@ class AuthProvider extends ChangeNotifier {
         ? AuthStatus.authenticated
         : AuthStatus.unauthenticated;
 
+    if (_status == AuthStatus.authenticated) {
+      refreshProfile();
+    }
+
     _authRepository.authStateChanges.listen((state) {
       _status = state.session != null
           ? AuthStatus.authenticated
           : AuthStatus.unauthenticated;
+      if (_status == AuthStatus.authenticated) {
+        refreshProfile();
+      } else {
+        _fetchedRole = null;
+      }
       notifyListeners();
     });
 
     notifyListeners();
   }
-
   Future<bool> register({
     required String fullName,
     required String email,
@@ -76,6 +97,7 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       await _authRepository.login(email: email, password: password);
+      await refreshProfile();
       _errorMessage = null;
       return true;
     } on AppException catch (e) {
@@ -90,6 +112,7 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       await _authRepository.logout();
+      _fetchedRole = null;
     } on AppException catch (e) {
       _errorMessage = e.message;
     } finally {

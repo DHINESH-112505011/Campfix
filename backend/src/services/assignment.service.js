@@ -2,6 +2,51 @@ const assignmentRepository = require('../repositories/assignment.repository');
 const complaintRepository = require('../repositories/complaint.repository');
 const { AppError } = require('./complaint.service');
 
+async function assignStaff({ complaintId, staffId, adminProfile, notes }) {
+  const complaint = await complaintRepository.findById(complaintId);
+  if (!complaint) throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
+
+  const existingActive = await assignmentRepository.findActiveByComplaintId(complaintId);
+  if (existingActive) {
+    throw new AppError(
+      'This complaint already has an active assignment. Use reassign instead.',
+      400,
+      'ALREADY_ASSIGNED'
+    );
+  }
+
+  const assignment = await assignmentRepository.createAssignment({
+    complaintId,
+    staffId,
+    assignedBy: adminProfile.id,
+    notes,
+  });
+
+  await complaintRepository.updateComplaint(complaintId, { status: 'ASSIGNED' });
+
+  return assignment;
+}
+
+async function reassignStaff({ complaintId, newStaffId, adminProfile, notes }) {
+  const complaint = await complaintRepository.findById(complaintId);
+  if (!complaint) throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
+
+  const existingActive = await assignmentRepository.findActiveByComplaintId(complaintId);
+  if (existingActive) {
+    await assignmentRepository.updateStatus(existingActive.id, { status: 'REASSIGNED' });
+  }
+
+  const newAssignment = await assignmentRepository.createAssignment({
+    complaintId,
+    staffId: newStaffId,
+    assignedBy: adminProfile.id,
+    notes,
+  });
+
+  await complaintRepository.updateComplaint(complaintId, { status: 'ASSIGNED' });
+
+  return newAssignment;
+}
 async function listMyAssignments({ staffProfile, status }) {
   return assignmentRepository.findByStaffId(staffProfile.id, { status });
 }
@@ -64,4 +109,11 @@ async function markCompleted({ assignmentId, staffProfile, notes }) {
   return updated;
 }
 
-module.exports = { listMyAssignments, acceptAssignment, startWork, markCompleted };
+module.exports = {
+  listMyAssignments,
+  acceptAssignment,
+  startWork,
+  markCompleted,
+  assignStaff,
+  reassignStaff,
+};

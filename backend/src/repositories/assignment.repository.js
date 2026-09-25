@@ -35,4 +35,37 @@ async function updateStatus(id, updates) {
   return data;
 }
 
-module.exports = { findByStaffId, findById, updateStatus };
+async function createAssignment({ complaintId, staffId, assignedBy, notes }) {
+  const { data, error } = await supabaseAdmin
+    .from('complaint_assignments')
+    .insert({
+      complaint_id: complaintId,
+      staff_id: staffId,
+      assigned_by: assignedBy,
+      status: 'ASSIGNED',
+      notes: notes || null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function findActiveByComplaintId(complaintId) {
+  const { data, error } = await supabaseAdmin
+    .from('complaint_assignments')
+    .select('*')
+    .eq('complaint_id', complaintId)
+    .in('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'])
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+module.exports = {
+  findByStaffId,
+  findById,
+  updateStatus,
+  createAssignment,
+  findActiveByComplaintId,
+};

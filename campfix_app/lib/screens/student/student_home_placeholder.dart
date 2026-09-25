@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/complaint.dart';
 import '../../models/complaint_category.dart';
 import '../../repositories/complaint_repository.dart';
+import '../../repositories/category_repository.dart';
 import '../../widgets/campfix_card.dart';
 import '../../widgets/campfix_stat_card.dart';
 import '../../widgets/campfix_complaint_card.dart';
@@ -25,9 +26,11 @@ class StudentHomePlaceholder extends StatefulWidget {
 
 class _StudentHomePlaceholderState extends State<StudentHomePlaceholder> {
   final ComplaintRepository _repository = ComplaintRepository();
+  final CategoryRepository _categoryRepository = CategoryRepository();
 
   late Future<List<Complaint>> _complaintsFuture;
   late Future<({int total, int active, int resolved})> _statsFuture;
+  late Future<List<ComplaintCategory>> _categoriesFuture;
 
   @override
   void initState() {
@@ -38,6 +41,7 @@ class _StudentHomePlaceholderState extends State<StudentHomePlaceholder> {
   void _loadData() {
     _complaintsFuture = _repository.getMyComplaints();
     _statsFuture = _repository.getMyStats();
+    _categoriesFuture = _categoryRepository.getCategories();
   }
 
   Future<void> _onRefresh() async {
@@ -154,28 +158,37 @@ class _StudentHomePlaceholderState extends State<StudentHomePlaceholder> {
               // Quick categories
               const CampFixSectionHeader(title: 'Quick Categories'),
               const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                height: 88,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: ComplaintCategory.defaults.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final category = ComplaintCategory.defaults[index];
-                                        return CampFixCategoryChip(
-                      category: category,
-                      onTap: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ReportWizardScreen(initialCategoryId: category.id),
-                          ),
+               FutureBuilder<List<ComplaintCategory>>(
+                future: _categoriesFuture,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const SizedBox(height: 88);
+                  }
+                  final categories = snapshot.data!;
+                  return SizedBox(
+                    height: 88,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: categories.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+                      itemBuilder: (context, index) {
+                        final category = categories[index];
+                        return CampFixCategoryChip(
+                          category: category,
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ReportWizardScreen(initialCategoryId: category.id),
+                              ),
+                            );
+                            if (mounted) _onRefresh();
+                          },
                         );
-                        if (mounted) _onRefresh();
                       },
-                    );
-                  },
-                ),
-              ),
+                    ),
+                  );
+                },
+              ),  
               const SizedBox(height: AppSpacing.xl),
 
               // Recent complaints

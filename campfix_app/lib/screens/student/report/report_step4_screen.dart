@@ -4,7 +4,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../models/complaint_draft.dart';
 import '../../../widgets/campfix_button.dart';
 import '../../../widgets/campfix_card.dart';
-import '../../../widgets/campfix_priority_badge.dart';
 import '../../../widgets/campfix_step_progress.dart';
 
 class ReportStep4Screen extends StatefulWidget {
@@ -25,30 +24,6 @@ class ReportStep4Screen extends StatefulWidget {
 
 class _ReportStep4ScreenState extends State<ReportStep4Screen> {
   bool _isSubmitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Simulated AI classification (real model wired in Phase 15).
-    // Deterministic-ish mock based on category, so it feels believable.
-    final draft = widget.draft;
-    draft.aiCategory = draft.categoryName;
-    draft.aiPriority = _mockPriorityFor(draft.categoryName ?? '');
-    draft.aiConfidence = 0.88 + (draft.title.length % 10) / 100;
-  }
-
-  String _mockPriorityFor(String category) {
-    switch (category) {
-      case 'Electrical':
-        return 'HIGH';
-      case 'Civil':
-        return 'CRITICAL';
-      case 'Furniture':
-        return 'LOW';
-      default:
-        return 'MEDIUM';
-    }
-  }
 
   Future<void> _handleSubmit() async {
     setState(() => _isSubmitting = true);
@@ -129,43 +104,21 @@ class _ReportStep4ScreenState extends State<ReportStep4Screen> {
                       ),
                     ],
                     const SizedBox(height: AppSpacing.md),
-                    CampFixCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.info.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.auto_awesome_rounded, color: AppColors.accent, size: 18),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text('AI Analysis', style: textTheme.labelLarge),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Predicted Category', style: textTheme.bodyMedium),
-                              Text(draft.aiCategory ?? '-', style: textTheme.labelLarge),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Predicted Priority', style: textTheme.bodyMedium),
-                              CampFixPriorityBadge(priority: draft.aiPriority ?? 'MEDIUM'),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Confidence', style: textTheme.bodyMedium),
-                              Text(
-                                '${((draft.aiConfidence ?? 0) * 100).toStringAsFixed(0)}%',
-                                style: textTheme.labelLarge,
-                              ),
-                            ],
+                          const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 18),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              'Our AI will analyze and classify your complaint automatically after submission.',
+                              style: textTheme.bodySmall,
+                            ),
                           ),
                         ],
                       ),

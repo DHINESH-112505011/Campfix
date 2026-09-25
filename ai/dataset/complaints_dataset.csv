@@ -1,0 +1,49 @@
+text,category,priority
+"Fan is not working in the classroom",Electrical,MEDIUM
+"Ceiling fan making loud noise and not spinning",Electrical,MEDIUM
+"Lights are not turning on in room",Electrical,MEDIUM
+"Electrical wire sparking near switchboard",Electrical,CRITICAL
+"Power socket burnt and smoking",Electrical,CRITICAL
+"Short circuit smell coming from wall",Electrical,CRITICAL
+"Tube light flickering constantly",Electrical,LOW
+"AC not cooling properly",AC,MEDIUM
+"Air conditioner making strange noise",AC,MEDIUM
+"AC completely stopped working",AC,HIGH
+"Water leaking from tap in washroom",Plumbing,HIGH
+"Tap is broken and water wont stop",Plumbing,HIGH
+"Major water leakage flooding the hostel corridor",Plumbing,CRITICAL
+"Pipe burst near the hostel entrance",Plumbing,CRITICAL
+"Slow water drainage in sink",Plumbing,LOW
+"Washroom drain is clogged",Plumbing,MEDIUM
+"Toilet flush not working",Restroom,MEDIUM
+"Restroom door lock broken",Restroom,LOW
+"Washroom extremely dirty and needs cleaning",Cleaning,MEDIUM
+"Classroom floor is dirty",Cleaning,LOW
+"Garbage not collected for days",Cleaning,MEDIUM
+"Dustbin overflowing near canteen",Cleaning,LOW
+"Chair is broken in classroom",Furniture,LOW
+"Table leg is broken",Furniture,LOW
+"Bench in seminar hall is damaged",Furniture,LOW
+"Door handle broken in classroom",Furniture,LOW
+"Wifi not working in hostel",Internet,MEDIUM
+"Internet connection extremely slow",Internet,LOW
+"No network connectivity in lab",Internet,MEDIUM
+"Projector not working in seminar hall",IT,MEDIUM
+"Computer not turning on in lab",IT,MEDIUM
+"Printer out of order",IT,LOW
+"Keyboard not working in computer lab",IT,LOW
+"Wall crack found in hostel room",Civil,HIGH
+"Ceiling leaking during rain",Civil,HIGH
+"Building wall damaged and unsafe",Civil,CRITICAL
+"Window glass broken",Civil,MEDIUM
+"Door not closing properly",Civil,LOW
+"Hostel room door lock broken",Hostel,MEDIUM
+"Hostel bed frame broken",Hostel,LOW
+"No hot water in hostel bathroom",Hostel,MEDIUM
+"Hostel room light not working",Hostel,MEDIUM
+"Garden plants dying due to no water",Other,LOW
+"Parking area needs repair",Other,LOW
+"Signage broken near entrance",Other,LOW
+"Water leakage near the hostel washroom entrance",Plumbing,CRITICAL
+"Fan is not working in Room 204",Electrical,MEDIUM
+"Projector not working in Seminar Hall",IT,MEDIUM

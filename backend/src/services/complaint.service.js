@@ -1,6 +1,6 @@
 const complaintRepository = require('../repositories/complaint.repository');
 const { validateStatusTransition } = require('../validators/complaint.validator');
-
+const { classifyComplaint } = require('./ai.service');
 class AppError extends Error {
   constructor(message, statusCode = 400, code = 'BAD_REQUEST') {
     super(message);
@@ -10,16 +10,22 @@ class AppError extends Error {
 }
 
 async function createComplaint({ studentProfile, body }) {
+  // Real AI classification (§21) - runs server-side so the client can
+  // never spoof AI results. Advisory only (§91): if it fails or is slow,
+  // the complaint still gets created with a sensible default priority.
+  const combinedText = `${body.title} ${body.description}`;
+  const aiResult = await classifyComplaint(combinedText);
+
   const payload = {
     student_id: studentProfile.id,
     category_id: body.categoryId || null,
     department_id: body.departmentId || null,
     title: body.title.trim(),
     description: body.description.trim(),
-    priority: body.priority || 'MEDIUM',
-    ai_category: body.aiCategory || null,
-    ai_priority: body.aiPriority || null,
-    ai_confidence: body.aiConfidence || null,
+    priority: aiResult.priority || body.priority || 'MEDIUM',
+    ai_category: aiResult.category,
+    ai_priority: aiResult.priority,
+    ai_confidence: aiResult.confidence,
     campus: body.campus || 'Main Campus',
     building: body.building.trim(),
     block: body.block || null,

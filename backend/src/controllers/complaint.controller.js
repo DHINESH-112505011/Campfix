@@ -50,18 +50,21 @@ async function getComplaintById(req, res, next) {
 async function listComplaints(req, res, next) {
   try {
     const pagination = parsePagination(req.query);
+    const filters = {
+      status: req.query.status,
+      priority: req.query.priority,
+      categoryId: req.query.categoryId,
+      search: req.query.search,
+      dateFrom: req.query.dateFrom,
+      dateTo: req.query.dateTo,
+    };
     let result;
 
     if (req.profile.role === 'STUDENT') {
-      result = await complaintService.listMyComplaints({ profile: req.profile, pagination });
+      result = await complaintService.listMyComplaints({ profile: req.profile, pagination, filters });
     } else if (req.profile.role === 'STAFF') {
       result = await complaintService.listAssignedComplaints({ profile: req.profile, pagination });
     } else {
-      const filters = {
-        status: req.query.status,
-        priority: req.query.priority,
-        categoryId: req.query.categoryId,
-      };
       result = await complaintService.listAllComplaints({ filters, pagination });
     }
 

@@ -1,5 +1,19 @@
 const supabaseAdmin = require('../config/supabaseClient');
 
+function applyFilters(query, { status, priority, categoryId, search, dateFrom, dateTo }) {
+  if (status) query = query.eq('status', status);
+  if (priority) query = query.eq('priority', priority);
+  if (categoryId) query = query.eq('category_id', categoryId);
+  if (dateFrom) query = query.gte('created_at', dateFrom);
+  if (dateTo) query = query.lte('created_at', dateTo);
+  if (search) {
+    query = query.or(
+      `complaint_number.ilike.%${search}%,title.ilike.%${search}%,description.ilike.%${search}%,building.ilike.%${search}%,room.ilike.%${search}%`
+    );
+  }
+  return query;
+}
+
 async function createComplaint(payload) {
   const { data, error } = await supabaseAdmin
     .from('complaints')
@@ -20,27 +34,29 @@ async function findById(id) {
   return data;
 }
 
-async function findByStudentId(studentId, { limit = 20, offset = 0 } = {}) {
-  const { data, error, count } = await supabaseAdmin
+async function findByStudentId(studentId, { limit = 20, offset = 0, ...filters } = {}) {
+  let query = supabaseAdmin
     .from('complaints')
     .select('*', { count: 'exact' })
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
+
+  query = applyFilters(query, filters);
+
+  const { data, error, count } = await query;
   if (error) throw error;
   return { data, total: count };
 }
 
-async function findAll({ limit = 20, offset = 0, status, priority, categoryId } = {}) {
+async function findAll({ limit = 20, offset = 0, ...filters } = {}) {
   let query = supabaseAdmin
     .from('complaints')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) query = query.eq('status', status);
-  if (priority) query = query.eq('priority', priority);
-  if (categoryId) query = query.eq('category_id', categoryId);
+  query = applyFilters(query, filters);
 
   const { data, error, count } = await query;
   if (error) throw error;

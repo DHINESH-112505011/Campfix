@@ -72,8 +72,8 @@ async function getComplaintById({ id, profile }) {
   return complaint;
 }
 
-async function listMyComplaints({ profile, pagination }) {
-  return complaintRepository.findByStudentId(profile.id, pagination);
+async function listMyComplaints({ profile, pagination, filters }) {
+  return complaintRepository.findByStudentId(profile.id, { ...pagination, ...filters });
 }
 
 async function listAllComplaints({ filters, pagination }) {

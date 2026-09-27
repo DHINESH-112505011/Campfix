@@ -8,11 +8,13 @@ const staffRoutes = require('./staff.routes');
 const categoryRoutes = require('./category.routes');
 const profileRoutes = require('./profile.routes');
 const notificationRoutes = require('./notification.routes');
+const feedbackRoutes = require('./feedback.routes');
 
 const router = express.Router();
 
 router.use('/health', healthRoutes);
 router.use('/complaints', complaintRoutes);
+router.use('/complaints', feedbackRoutes); // adds /complaints/:id/feedback
 router.use('/uploads', uploadRoutes);
 router.use('/assignments', assignmentRoutes);
 router.use('/dashboard', dashboardRoutes);

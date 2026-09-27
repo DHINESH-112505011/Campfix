@@ -6,7 +6,9 @@ import '../../providers/auth_provider.dart';
 import '../../models/app_role.dart';
 import '../../models/complaint.dart';
 import '../../models/timeline_event.dart';
+import '../../models/complaint_feedback.dart';
 import '../../repositories/complaint_repository.dart';
+import '../../repositories/feedback_repository.dart';
 import '../../widgets/campfix_card.dart';
 import '../../widgets/campfix_status_chip.dart';
 import '../../widgets/campfix_priority_badge.dart';
@@ -14,7 +16,9 @@ import '../../widgets/campfix_timeline.dart';
 import '../../widgets/campfix_section_header.dart';
 import '../../widgets/campfix_button.dart';
 import '../../widgets/campfix_outlined_button.dart';
+import '../../widgets/campfix_star_rating.dart';
 import '../../core/errors/app_exception.dart';
+import 'complaint_feedback_screen.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
   final String complaintId;
@@ -27,9 +31,11 @@ class ComplaintDetailsScreen extends StatefulWidget {
 
 class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   final ComplaintRepository _repository = ComplaintRepository();
+  final FeedbackRepository _feedbackRepository = FeedbackRepository();
 
   Complaint? _complaint;
   List<TimelineEvent> _timeline = [];
+  ComplaintFeedback? _feedback;
   bool _isLoading = true;
   bool _isActionInProgress = false;
   String? _errorMessage;
@@ -50,10 +56,18 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
         _repository.getComplaintById(widget.complaintId),
         _repository.getTimeline(widget.complaintId),
       ]);
+      final complaint = results[0] as Complaint;
+
+      ComplaintFeedback? feedback;
+      if (complaint.status == 'RESOLVED') {
+        feedback = await _feedbackRepository.getFeedback(widget.complaintId);
+      }
+
       if (!mounted) return;
       setState(() {
-        _complaint = results[0] as Complaint;
+        _complaint = complaint;
         _timeline = results[1] as List<TimelineEvent>;
+        _feedback = feedback;
         _isLoading = false;
       });
     } on AppException catch (e) {
@@ -95,12 +109,24 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
         _complaint = updated;
         _isActionInProgress = false;
       });
-      await _loadData(); // refresh timeline to show the new entry
+      await _loadData();
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() => _isActionInProgress = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
+  }
+
+  Future<void> _openFeedbackScreen() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ComplaintFeedbackScreen(
+          complaintId: widget.complaintId,
+          complaintNumber: _complaint!.complaintNumber,
+        ),
+      ),
+    );
+    if (result == true) _loadData();
   }
 
   @override
@@ -169,8 +195,26 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
 
+          if (complaint.status == 'RESOLVED' && _feedback != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            CampFixCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Your Feedback', style: textTheme.titleMedium),
+                  const SizedBox(height: AppSpacing.sm),
+                  CampFixStarRating(rating: _feedback!.rating, size: 22),
+                  if (_feedback!.comment != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(_feedback!.comment!, style: textTheme.bodyMedium),
+                  ],
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: AppSpacing.xl),
           const CampFixSectionHeader(title: 'Timeline'),
           const SizedBox(height: AppSpacing.lg),
           if (_timeline.isEmpty)
@@ -244,11 +288,37 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     final isActive = !['RESOLVED', 'REJECTED', 'CANCELLED'].contains(complaint.status);
     final canCancel = isActive && complaint.status != 'IN_PROGRESS' && complaint.status != 'WORK_COMPLETED';
     final canReopen = complaint.status == 'RESOLVED';
+    final canGiveFeedback = complaint.status == 'RESOLVED' && _feedback == null;
 
-    if (!canCancel && !canReopen) return [];
+    final widgets = <Widget>[];
 
-    return [
-      if (canCancel)
+    if (canGiveFeedback) {
+      widgets.add(
+        CampFixButton(
+          label: 'Give Feedback',
+          onPressed: _openFeedbackScreen,
+        ),
+      );
+    }
+
+    if (canReopen) {
+      if (widgets.isNotEmpty) widgets.add(const SizedBox(height: AppSpacing.sm));
+      widgets.add(
+        CampFixOutlinedButton(
+          label: 'Problem Still Exists - Reopen',
+          onPressed: _isActionInProgress
+              ? null
+              : () => _updateStatus(
+                    'REOPENED',
+                    confirmMessage: 'This will reopen the complaint for admin review. Continue?',
+                  ),
+        ),
+      );
+    }
+
+    if (canCancel) {
+      if (widgets.isNotEmpty) widgets.add(const SizedBox(height: AppSpacing.sm));
+      widgets.add(
         CampFixOutlinedButton(
           label: 'Cancel Complaint',
           icon: Icons.close_rounded,
@@ -259,16 +329,9 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                     confirmMessage: 'Are you sure you want to cancel this complaint?',
                   ),
         ),
-      if (canReopen)
-        CampFixButton(
-          label: 'Problem Still Exists - Reopen',
-          onPressed: _isActionInProgress
-              ? null
-              : () => _updateStatus(
-                    'REOPENED',
-                    confirmMessage: 'This will reopen the complaint for admin review. Continue?',
-                  ),
-        ),
-    ];
+      );
+    }
+
+    return widgets;
   }
 }

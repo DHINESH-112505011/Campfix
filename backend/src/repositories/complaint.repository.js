@@ -74,7 +74,14 @@ async function findAssignedToStaff(staffId, { limit = 20, offset = 0 } = {}) {
   return { data, total: count };
 }
 
-async function updateComplaint(id, updates) {
+/**
+ * Updates a complaint. If `actor` is provided and the update changes
+ * `status`, we directly patch the most recent matching timeline row
+ * (inserted a moment earlier by the Phase 6 trigger) with the real
+ * performed_by/role, since PostgREST connection pooling makes Postgres
+ * session variables unreliable for trigger attribution.
+ */
+async function updateComplaint(id, updates, actor = null) {
   const { data, error } = await supabaseAdmin
     .from('complaints')
     .update(updates)
@@ -82,6 +89,18 @@ async function updateComplaint(id, updates) {
     .select()
     .single();
   if (error) throw error;
+
+  if (actor?.userId && updates.status) {
+    await supabaseAdmin
+      .from('complaint_timeline')
+      .update({ performed_by: actor.userId, role: actor.role })
+      .eq('complaint_id', id)
+      .eq('new_status', updates.status)
+      .is('performed_by', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+  }
+
   return data;
 }
 

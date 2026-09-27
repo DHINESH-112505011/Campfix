@@ -1,6 +1,7 @@
 const assignmentRepository = require('../repositories/assignment.repository');
 const complaintRepository = require('../repositories/complaint.repository');
 const notificationService = require('./notification.service');
+const auditLogService = require('./auditLog.service');
 const { AppError } = require('./complaint.service');
 
 async function listMyAssignments({ staffProfile, status }) {
@@ -160,6 +161,16 @@ async function reassignStaff({ complaintId, newStaffId, adminProfile, notes }) {
     message: `You have been assigned to "${complaint.title}" (${complaint.complaint_number}).`,
     type: 'NEW_ASSIGNMENT',
     relatedComplaintId: complaintId,
+  });
+
+  // Audit log: reassignment is a sensitive action per §47 example
+  auditLogService.log({
+    userId: adminProfile.id,
+    action: 'STAFF_REASSIGNED',
+    entityType: 'complaint',
+    entityId: complaintId,
+    oldValue: existingActive ? { staff_id: existingActive.staff_id } : null,
+    newValue: { staff_id: newStaffId },
   });
 
   return newAssignment;

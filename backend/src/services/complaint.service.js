@@ -2,6 +2,7 @@ const complaintRepository = require('../repositories/complaint.repository');
 const { validateStatusTransition } = require('../validators/complaint.validator');
 const { classifyComplaint } = require('./ai.service');
 const notificationService = require('./notification.service');
+const auditLogService = require('./auditLog.service');
 
 class AppError extends Error {
   constructor(message, statusCode = 400, code = 'BAD_REQUEST') {
@@ -35,8 +36,6 @@ async function createComplaint({ studentProfile, body }) {
 
   const complaint = await complaintRepository.createComplaint(payload);
 
-  // Notify student (confirmation) and all admins (new complaint), per §37.
-  // Fire-and-forget: notification failures never block complaint creation.
   notificationService.notifyUser({
     userId: studentProfile.id,
     title: 'Complaint Submitted',
@@ -105,9 +104,12 @@ async function updateComplaintStatus({ id, newStatus, actorProfile }) {
     }
   }
 
-  const updated = await complaintRepository.updateComplaint(id, { status: newStatus });
+  const updated = await complaintRepository.updateComplaint(
+    id,
+    { status: newStatus },
+    { userId: actorProfile.id, role: actorProfile.role }
+  );
 
-  // Notify student on key transitions (§37)
   if (newStatus === 'RESOLVED') {
     notificationService.notifyUser({
       userId: complaint.student_id,
@@ -123,6 +125,15 @@ async function updateComplaintStatus({ id, newStatus, actorProfile }) {
       type: 'COMPLAINT_REOPENED',
       relatedComplaintId: complaint.id,
     });
+  } else if (newStatus === 'REJECTED') {
+    auditLogService.log({
+      userId: actorProfile.id,
+      action: 'COMPLAINT_REJECTED',
+      entityType: 'complaint',
+      entityId: id,
+      oldValue: { status: complaint.status },
+      newValue: { status: newStatus },
+    });
   }
 
   return updated;
@@ -132,12 +143,34 @@ async function updateComplaintDetails({ id, updates, actorProfile }) {
   if (!['ADMIN', 'SUPER_ADMIN'].includes(actorProfile.role)) {
     throw new AppError('Only administrators can edit complaint details.', 403, 'FORBIDDEN');
   }
+
+  const complaint = await complaintRepository.findById(id);
+  if (!complaint) {
+    throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
+  }
+
   const allowedFields = ['priority', 'category_id', 'department_id'];
   const sanitized = {};
   for (const key of allowedFields) {
     if (key in updates) sanitized[key] = updates[key];
   }
-  return complaintRepository.updateComplaint(id, sanitized);
+
+  const updated = await complaintRepository.updateComplaint(id, sanitized);
+
+  // Audit log priority overrides specifically - matches §47's own example
+  // (Priority: Medium -> High) and §91 (AI is advisory, admin has final say).
+  if ('priority' in sanitized && sanitized.priority !== complaint.priority) {
+    auditLogService.log({
+      userId: actorProfile.id,
+      action: 'PRIORITY_CHANGED',
+      entityType: 'complaint',
+      entityId: id,
+      oldValue: { priority: complaint.priority },
+      newValue: { priority: sanitized.priority },
+    });
+  }
+
+  return updated;
 }
 
 async function getComplaintTimeline({ id, profile }) {

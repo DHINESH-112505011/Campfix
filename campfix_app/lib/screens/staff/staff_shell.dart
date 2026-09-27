@@ -3,6 +3,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../widgets/campfix_bottom_navigation.dart';
 import '../common/profile_placeholder_screen.dart';
+import '../common/notifications_screen.dart';
 import 'staff_home_placeholder.dart';
 
 class _PlaceholderTab extends StatelessWidget {
@@ -33,7 +34,7 @@ class _StaffShellState extends State<StaffShell> {
     StaffHomePlaceholder(),
     _PlaceholderTab('Tasks'),
     _PlaceholderTab('History'),
-    _PlaceholderTab('Notifications'),
+    NotificationsScreen(),
     ProfilePlaceholderScreen(),
   ];
 

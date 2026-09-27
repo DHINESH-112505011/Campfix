@@ -1,52 +1,8 @@
 const assignmentRepository = require('../repositories/assignment.repository');
 const complaintRepository = require('../repositories/complaint.repository');
+const notificationService = require('./notification.service');
 const { AppError } = require('./complaint.service');
 
-async function assignStaff({ complaintId, staffId, adminProfile, notes }) {
-  const complaint = await complaintRepository.findById(complaintId);
-  if (!complaint) throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
-
-  const existingActive = await assignmentRepository.findActiveByComplaintId(complaintId);
-  if (existingActive) {
-    throw new AppError(
-      'This complaint already has an active assignment. Use reassign instead.',
-      400,
-      'ALREADY_ASSIGNED'
-    );
-  }
-
-  const assignment = await assignmentRepository.createAssignment({
-    complaintId,
-    staffId,
-    assignedBy: adminProfile.id,
-    notes,
-  });
-
-  await complaintRepository.updateComplaint(complaintId, { status: 'ASSIGNED' });
-
-  return assignment;
-}
-
-async function reassignStaff({ complaintId, newStaffId, adminProfile, notes }) {
-  const complaint = await complaintRepository.findById(complaintId);
-  if (!complaint) throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
-
-  const existingActive = await assignmentRepository.findActiveByComplaintId(complaintId);
-  if (existingActive) {
-    await assignmentRepository.updateStatus(existingActive.id, { status: 'REASSIGNED' });
-  }
-
-  const newAssignment = await assignmentRepository.createAssignment({
-    complaintId,
-    staffId: newStaffId,
-    assignedBy: adminProfile.id,
-    notes,
-  });
-
-  await complaintRepository.updateComplaint(complaintId, { status: 'ASSIGNED' });
-
-  return newAssignment;
-}
 async function listMyAssignments({ staffProfile, status }) {
   return assignmentRepository.findByStaffId(staffProfile.id, { status });
 }
@@ -82,7 +38,15 @@ async function startWork({ assignmentId, staffProfile }) {
   }
 
   const updated = await assignmentRepository.updateStatus(assignmentId, { status: 'IN_PROGRESS' });
-  await complaintRepository.updateComplaint(assignment.complaint_id, { status: 'IN_PROGRESS' });
+  const complaint = await complaintRepository.updateComplaint(assignment.complaint_id, { status: 'IN_PROGRESS' });
+
+  notificationService.notifyUser({
+    userId: complaint.student_id,
+    title: 'Work Started',
+    message: `Work has started on your complaint "${complaint.title}".`,
+    type: 'WORK_STARTED',
+    relatedComplaintId: complaint.id,
+  });
 
   return updated;
 }
@@ -103,10 +67,102 @@ async function markCompleted({ assignmentId, staffProfile, notes }) {
     notes: notes || assignment.notes,
   });
 
-  // Staff cannot directly resolve - goes to admin verification (§28)
-  await complaintRepository.updateComplaint(assignment.complaint_id, { status: 'WORK_COMPLETED' });
+  const complaint = await complaintRepository.updateComplaint(assignment.complaint_id, { status: 'WORK_COMPLETED' });
+
+  notificationService.notifyUser({
+    userId: complaint.student_id,
+    title: 'Work Completed',
+    message: `Work on your complaint "${complaint.title}" has been completed and is pending verification.`,
+    type: 'COMPLAINT_COMPLETED',
+    relatedComplaintId: complaint.id,
+  });
+  notificationService.notifyAllAdmins({
+    title: 'Work Completed - Verification Needed',
+    message: `"${complaint.title}" (${complaint.complaint_number}) is awaiting your verification.`,
+    type: 'NEW_COMPLAINT',
+    relatedComplaintId: complaint.id,
+  });
 
   return updated;
+}
+
+async function assignStaff({ complaintId, staffId, adminProfile, notes }) {
+  const complaint = await complaintRepository.findById(complaintId);
+  if (!complaint) throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
+
+  const existingActive = await assignmentRepository.findActiveByComplaintId(complaintId);
+  if (existingActive) {
+    throw new AppError(
+      'This complaint already has an active assignment. Use reassign instead.',
+      400,
+      'ALREADY_ASSIGNED'
+    );
+  }
+
+  const assignment = await assignmentRepository.createAssignment({
+    complaintId,
+    staffId,
+    assignedBy: adminProfile.id,
+    notes,
+  });
+
+  await complaintRepository.updateComplaint(complaintId, { status: 'ASSIGNED' });
+
+  notificationService.notifyUser({
+    userId: staffId,
+    title: 'New Assignment',
+    message: `You have been assigned to "${complaint.title}" (${complaint.complaint_number}).`,
+    type: 'NEW_ASSIGNMENT',
+    relatedComplaintId: complaintId,
+  });
+
+  if (complaint.priority === 'CRITICAL') {
+    notificationService.notifyUser({
+      userId: staffId,
+      title: 'Urgent: Critical Complaint Assigned',
+      message: `"${complaint.title}" is marked CRITICAL and needs immediate attention.`,
+      type: 'URGENT_COMPLAINT',
+      relatedComplaintId: complaintId,
+    });
+  }
+
+  return assignment;
+}
+
+async function reassignStaff({ complaintId, newStaffId, adminProfile, notes }) {
+  const complaint = await complaintRepository.findById(complaintId);
+  if (!complaint) throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
+
+  const existingActive = await assignmentRepository.findActiveByComplaintId(complaintId);
+  if (existingActive) {
+    await assignmentRepository.updateStatus(existingActive.id, { status: 'REASSIGNED' });
+    notificationService.notifyUser({
+      userId: existingActive.staff_id,
+      title: 'Assignment Changed',
+      message: `You have been unassigned from "${complaint.title}" (${complaint.complaint_number}).`,
+      type: 'ASSIGNMENT_CHANGED',
+      relatedComplaintId: complaintId,
+    });
+  }
+
+  const newAssignment = await assignmentRepository.createAssignment({
+    complaintId,
+    staffId: newStaffId,
+    assignedBy: adminProfile.id,
+    notes,
+  });
+
+  await complaintRepository.updateComplaint(complaintId, { status: 'ASSIGNED' });
+
+  notificationService.notifyUser({
+    userId: newStaffId,
+    title: 'New Assignment',
+    message: `You have been assigned to "${complaint.title}" (${complaint.complaint_number}).`,
+    type: 'NEW_ASSIGNMENT',
+    relatedComplaintId: complaintId,
+  });
+
+  return newAssignment;
 }
 
 module.exports = {

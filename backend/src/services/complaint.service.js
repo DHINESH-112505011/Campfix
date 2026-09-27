@@ -1,6 +1,8 @@
 const complaintRepository = require('../repositories/complaint.repository');
 const { validateStatusTransition } = require('../validators/complaint.validator');
 const { classifyComplaint } = require('./ai.service');
+const notificationService = require('./notification.service');
+
 class AppError extends Error {
   constructor(message, statusCode = 400, code = 'BAD_REQUEST') {
     super(message);
@@ -10,9 +12,6 @@ class AppError extends Error {
 }
 
 async function createComplaint({ studentProfile, body }) {
-  // Real AI classification (§21) - runs server-side so the client can
-  // never spoof AI results. Advisory only (§91): if it fails or is slow,
-  // the complaint still gets created with a sensible default priority.
   const combinedText = `${body.title} ${body.description}`;
   const aiResult = await classifyComplaint(combinedText);
 
@@ -34,7 +33,27 @@ async function createComplaint({ studentProfile, body }) {
     specific_location: body.specificLocation || null,
   };
 
-  return complaintRepository.createComplaint(payload);
+  const complaint = await complaintRepository.createComplaint(payload);
+
+  // Notify student (confirmation) and all admins (new complaint), per §37.
+  // Fire-and-forget: notification failures never block complaint creation.
+  notificationService.notifyUser({
+    userId: studentProfile.id,
+    title: 'Complaint Submitted',
+    message: `Your complaint "${complaint.title}" has been submitted successfully.`,
+    type: 'COMPLAINT_SUBMITTED',
+    relatedComplaintId: complaint.id,
+  });
+
+  const notifyType = complaint.priority === 'CRITICAL' ? 'CRITICAL_COMPLAINT' : 'NEW_COMPLAINT';
+  notificationService.notifyAllAdmins({
+    title: complaint.priority === 'CRITICAL' ? 'Critical Complaint Submitted' : 'New Complaint Submitted',
+    message: `"${complaint.title}" (${complaint.complaint_number}) needs review.`,
+    type: notifyType,
+    relatedComplaintId: complaint.id,
+  });
+
+  return complaint;
 }
 
 async function getComplaintById({ id, profile }) {
@@ -43,18 +62,12 @@ async function getComplaintById({ id, profile }) {
     throw new AppError('Complaint not found.', 404, 'NOT_FOUND');
   }
 
-  // Defense in depth: even though RLS protects direct DB access, the
-  // backend (using service role) must also enforce scoping explicitly,
-  // since service role bypasses RLS.
   const isOwner = complaint.student_id === profile.id;
   const isPrivileged = ['ADMIN', 'SUPER_ADMIN'].includes(profile.role);
 
   if (!isOwner && !isPrivileged && profile.role !== 'STAFF') {
     throw new AppError('You do not have access to this complaint.', 403, 'FORBIDDEN');
   }
-  // Staff scoping (only assigned complaints) is enforced at the route/query
-  // level via findAssignedToStaff - a STAFF profile reaching this function
-  // via getById is further checked by the controller for assignment.
 
   return complaint;
 }
@@ -82,9 +95,6 @@ async function updateComplaintStatus({ id, newStatus, actorProfile }) {
     throw new AppError(transitionError, 400, 'INVALID_TRANSITION');
   }
 
-  // Students may only cancel or reopen their own complaint (§7 - cannot
-  // arbitrarily change status); staff/admin get broader allowed transitions
-  // via validateStatusTransition, but role-appropriateness is checked here.
   const studentAllowedTargets = ['CANCELLED', 'REOPENED'];
   if (actorProfile.role === 'STUDENT') {
     if (complaint.student_id !== actorProfile.id) {
@@ -95,7 +105,27 @@ async function updateComplaintStatus({ id, newStatus, actorProfile }) {
     }
   }
 
-  return complaintRepository.updateComplaint(id, { status: newStatus });
+  const updated = await complaintRepository.updateComplaint(id, { status: newStatus });
+
+  // Notify student on key transitions (§37)
+  if (newStatus === 'RESOLVED') {
+    notificationService.notifyUser({
+      userId: complaint.student_id,
+      title: 'Complaint Resolved',
+      message: `Your complaint "${complaint.title}" has been resolved.`,
+      type: 'COMPLAINT_RESOLVED',
+      relatedComplaintId: complaint.id,
+    });
+  } else if (newStatus === 'REOPENED') {
+    notificationService.notifyAllAdmins({
+      title: 'Complaint Reopened',
+      message: `"${complaint.title}" (${complaint.complaint_number}) was reopened by the student.`,
+      type: 'COMPLAINT_REOPENED',
+      relatedComplaintId: complaint.id,
+    });
+  }
+
+  return updated;
 }
 
 async function updateComplaintDetails({ id, updates, actorProfile }) {
@@ -111,8 +141,6 @@ async function updateComplaintDetails({ id, updates, actorProfile }) {
 }
 
 async function getComplaintTimeline({ id, profile }) {
-  // Reuses the same access check as getComplaintById to avoid duplicating
-  // the ownership/role logic.
   await getComplaintById({ id, profile });
   return complaintRepository.getTimeline(id);
 }

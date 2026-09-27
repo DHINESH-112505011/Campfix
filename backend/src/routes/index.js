@@ -7,6 +7,7 @@ const dashboardRoutes = require('./dashboard.routes');
 const staffRoutes = require('./staff.routes');
 const categoryRoutes = require('./category.routes');
 const profileRoutes = require('./profile.routes');
+const notificationRoutes = require('./notification.routes');
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/staff', staffRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/profile', profileRoutes);
+router.use('/notifications', notificationRoutes);
 
 module.exports = router;

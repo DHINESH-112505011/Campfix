@@ -3,22 +3,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../widgets/campfix_bottom_navigation.dart';
 import '../common/profile_placeholder_screen.dart';
+import '../common/notifications_screen.dart';
 import 'student_home_placeholder.dart';
 import 'complaints_list_screen.dart';
 import 'report/report_wizard_screen.dart';
-
-class _PlaceholderTab extends StatelessWidget {
-  final String title;
-  const _PlaceholderTab(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('$title coming in a later phase')),
-    );
-  }
-}
 
 /// Navigation shell for STUDENT role: Home, Complaints, Report, Notifications, Profile.
 class StudentShell extends StatefulWidget {
@@ -35,7 +23,7 @@ class _StudentShellState extends State<StudentShell> {
     StudentHomePlaceholder(),
     ComplaintsListScreen(),
     ReportWizardScreen(),
-    _PlaceholderTab('Notifications'),
+    NotificationsScreen(),
     ProfilePlaceholderScreen(),
   ];
 
@@ -82,4 +70,4 @@ class _StudentShellState extends State<StudentShell> {
       ),
     );
   }
-}
+}   

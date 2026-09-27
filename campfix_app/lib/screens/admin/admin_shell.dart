@@ -3,6 +3,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../widgets/campfix_bottom_navigation.dart';
 import '../common/profile_placeholder_screen.dart';
+import '../common/notifications_screen.dart';
 import 'admin_home_placeholder.dart';
 import 'admin_complaint_list_screen.dart';
 
@@ -36,7 +37,7 @@ class _AdminShellState extends State<AdminShell> {
     AdminComplaintListScreen(),
     _PlaceholderTab('Staff'),
     _PlaceholderTab('Users'),
-    _PlaceholderTab('Analytics'),
+    NotificationsScreen(),
     ProfilePlaceholderScreen(),
   ];
 
@@ -45,14 +46,12 @@ class _AdminShellState extends State<AdminShell> {
     CampFixNavItem(icon: Icons.list_alt_outlined, selectedIcon: Icons.list_alt_rounded, label: 'Complaints'),
     CampFixNavItem(icon: Icons.engineering_outlined, selectedIcon: Icons.engineering_rounded, label: 'Staff'),
     CampFixNavItem(icon: Icons.people_outline_rounded, selectedIcon: Icons.people_rounded, label: 'Users'),
-    CampFixNavItem(icon: Icons.bar_chart_outlined, selectedIcon: Icons.bar_chart_rounded, label: 'Analytics'),
+    CampFixNavItem(icon: Icons.notifications_outlined, selectedIcon: Icons.notifications_rounded, label: 'Notifications'),
     CampFixNavItem(icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: 'Profile'),
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Admin is information-dense; always prefer a rail once space allows (tablet+),
-    // and use bottom nav with a condensed set only on small phones.
     if (Responsive.isTabletOrLarger(context)) {
       return Scaffold(
         body: Row(

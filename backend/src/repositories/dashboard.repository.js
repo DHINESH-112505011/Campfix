@@ -56,6 +56,20 @@ async function getComplaintsByCategory() {
   return counts;
 }
 
+async function getComplaintsByDepartment() {
+  const { data, error } = await supabaseAdmin
+    .from('complaints')
+    .select('department_id, departments(name)');
+  if (error) throw error;
+
+  const counts = {};
+  for (const row of data) {
+    const name = row.departments?.name || 'Unassigned';
+    counts[name] = (counts[name] || 0) + 1;
+  }
+  return counts;
+}
+
 async function getRecentComplaints(limit = 5) {
   const { data, error } = await supabaseAdmin
     .from('complaints')
@@ -74,10 +88,68 @@ async function getStaffWorkload() {
   return data;
 }
 
+async function getAverageResolutionTimeHours() {
+  const { data, error } = await supabaseAdmin
+    .from('complaints')
+    .select('created_at, resolved_at')
+    .not('resolved_at', 'is', null);
+  if (error) throw error;
+
+  if (data.length === 0) return 0;
+
+  const totalHours = data.reduce((sum, row) => {
+    const created = new Date(row.created_at).getTime();
+    const resolved = new Date(row.resolved_at).getTime();
+    return sum + (resolved - created) / (1000 * 60 * 60);
+  }, 0);
+
+  return Math.round((totalHours / data.length) * 10) / 10;
+}
+
+async function getReopenedCount() {
+  const { count, error } = await supabaseAdmin
+    .from('complaints')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'REOPENED');
+  if (error) throw error;
+  return count || 0;
+}
+
+async function getSatisfactionStats() {
+  const { data, error } = await supabaseAdmin
+    .from('complaint_feedback')
+    .select('rating, resolved_successfully');
+  if (error) throw error;
+
+  if (data.length === 0) {
+    return { averageRating: 0, totalFeedback: 0, resolvedSuccessfullyPercent: 0 };
+  }
+
+  const averageRating =
+    Math.round((data.reduce((sum, f) => sum + f.rating, 0) / data.length) * 10) / 10;
+  const successCount = data.filter((f) => f.resolved_successfully).length;
+  const resolvedSuccessfullyPercent = Math.round((successCount / data.length) * 100);
+
+  return { averageRating, totalFeedback: data.length, resolvedSuccessfullyPercent };
+}
+
+async function getStaffPerformance() {
+  const { data, error } = await supabaseAdmin
+    .from('staff_average_rating')
+    .select('staff_id, average_rating, total_ratings, profiles(full_name, staff_specialization)');
+  if (error) throw error;
+  return data;
+}
+
 module.exports = {
   getOverviewCounts,
   getComplaintsByStatus,
   getComplaintsByCategory,
+  getComplaintsByDepartment,
   getRecentComplaints,
   getStaffWorkload,
+  getAverageResolutionTimeHours,
+  getReopenedCount,
+  getSatisfactionStats,
+  getStaffPerformance,
 };

@@ -10,4 +10,13 @@ async function getAdminDashboard(req, res, next) {
   }
 }
 
-module.exports = { getAdminDashboard };
+async function getAnalytics(req, res, next) {
+  try {
+    const analytics = await dashboardService.getAnalytics();
+    return success(res, { message: 'Analytics retrieved', data: analytics });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAdminDashboard, getAnalytics };

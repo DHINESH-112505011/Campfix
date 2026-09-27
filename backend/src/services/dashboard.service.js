@@ -12,4 +12,37 @@ async function getAdminDashboard() {
   return { overview, byStatus, byCategory, recentComplaints, staffWorkload };
 }
 
-module.exports = { getAdminDashboard };
+async function getAnalytics() {
+  const [
+    overview,
+    byStatus,
+    byCategory,
+    byDepartment,
+    avgResolutionTimeHours,
+    reopenedCount,
+    satisfaction,
+    staffPerformance,
+  ] = await Promise.all([
+    dashboardRepository.getOverviewCounts(),
+    dashboardRepository.getComplaintsByStatus(),
+    dashboardRepository.getComplaintsByCategory(),
+    dashboardRepository.getComplaintsByDepartment(),
+    dashboardRepository.getAverageResolutionTimeHours(),
+    dashboardRepository.getReopenedCount(),
+    dashboardRepository.getSatisfactionStats(),
+    dashboardRepository.getStaffPerformance(),
+  ]);
+
+  return {
+    overview,
+    byStatus,
+    byCategory,
+    byDepartment,
+    avgResolutionTimeHours,
+    reopenedCount,
+    satisfaction,
+    staffPerformance,
+  };
+}
+
+module.exports = { getAdminDashboard, getAnalytics };

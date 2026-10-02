@@ -15,7 +15,7 @@ async function createComplaint(req, res, next) {
     if (errors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Please check your complaint details and try again.',
+        message: errors.join(' '),
         error: { code: 'VALIDATION_ERROR', details: errors },
       });
     }

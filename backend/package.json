@@ -8,7 +8,10 @@
     "dev": "nodemon server.js",
     "test": "jest --runInBand"
   },
-  "private": true,
+    "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

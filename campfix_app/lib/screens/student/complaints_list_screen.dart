@@ -18,38 +18,85 @@ class ComplaintsListScreen extends StatefulWidget {
 
 class _ComplaintsListScreenState extends State<ComplaintsListScreen> {
   final ComplaintRepository _repository = ComplaintRepository();
-  late Future<List<Complaint>> _complaintsFuture;
+  final ScrollController _scrollController = ScrollController();
+
+  final List<Complaint> _complaints = [];
   ComplaintFilter _filter = const ComplaintFilter();
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 1;
+  static const _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadInitial();
+    _scrollController.addListener(_onScroll);
   }
 
-  void _loadData() {
-    _complaintsFuture = _repository.getMyComplaints(filter: _filter);
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
-  Future<void> _refresh() async {
-    setState(_loadData);
-    await _complaintsFuture;
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadInitial() async {
+    setState(() {
+      _isLoading = true;
+      _page = 1;
+      _hasMore = true;
+    });
+    try {
+      final results = await _repository.getMyComplaints(filter: _filter);
+      if (!mounted) return;
+      setState(() {
+        _complaints
+          ..clear()
+          ..addAll(results);
+        _hasMore = results.length == _pageSize;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _isLoadingMore = true);
+    try {
+      final nextPage = _page + 1;
+      final results = await _repository.getMyComplaints(filter: _filter, page: nextPage);
+      if (!mounted) return;
+      setState(() {
+        _complaints.addAll(results);
+        _page = nextPage;
+        _hasMore = results.length == _pageSize;
+        _isLoadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
   }
 
   void _onSearchChanged(String value) {
-    setState(() {
-      _filter = _filter.copyWith(search: value.isEmpty ? null : value);
-      _loadData();
-    });
+    _filter = _filter.copyWith(search: value.isEmpty ? null : value);
+    _loadInitial();
   }
 
   Future<void> _openFilters() async {
     final result = await showCampFixFilterSheet(context, _filter);
     if (result != null) {
-      setState(() {
-        _filter = result;
-        _loadData();
-      });
+      _filter = result;
+      _loadInitial();
     }
   }
 
@@ -70,44 +117,43 @@ class _ComplaintsListScreenState extends State<ComplaintsListScreen> {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: FutureBuilder<List<Complaint>>(
-                  future: _complaintsFuture,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final complaints = snapshot.data!;
-                    if (complaints.isEmpty) {
-                      return ListView(
-                        children: [
-                          CampFixEmptyState(
-                            icon: Icons.inbox_rounded,
-                            title: _filter.isEmpty
-                                ? "You haven't reported any campus problems yet."
-                                : 'No complaints match your filters.',
+                onRefresh: _loadInitial,
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _complaints.isEmpty
+                        ? ListView(
+                            children: [
+                              CampFixEmptyState(
+                                icon: Icons.inbox_rounded,
+                                title: _filter.isEmpty
+                                    ? "You haven't reported any campus problems yet."
+                                    : 'No complaints match your filters.',
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                            itemCount: _complaints.length + (_hasMore ? 1 : 0),
+                            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                            itemBuilder: (context, index) {
+                              if (index >= _complaints.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+                              final c = _complaints[index];
+                              return CampFixComplaintCard(
+                                complaint: c,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ComplaintDetailsScreen(complaintId: c.id),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ],
-                      );
-                    }
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                      itemCount: complaints.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                      itemBuilder: (context, index) {
-                        final c = complaints[index];
-                        return CampFixComplaintCard(
-                          complaint: c,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ComplaintDetailsScreen(complaintId: c.id),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
               ),
             ),
           ],

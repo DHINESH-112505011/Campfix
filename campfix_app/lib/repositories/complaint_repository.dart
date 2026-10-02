@@ -10,9 +10,10 @@ import '../models/complaint_filter.dart';
 class ComplaintRepository {
   final ApiClient _apiClient = ApiClient();
 
-  Future<List<Complaint>> getMyComplaints({ComplaintFilter? filter}) async {
+  Future<List<Complaint>> getMyComplaints({ComplaintFilter? filter, int page = 1}) async {
     try {
-      final response = await _apiClient.get('/complaints', query: filter?.toQuery());
+      final query = {...?filter?.toQuery(), 'page': page};
+      final response = await _apiClient.get('/complaints', query: query);
       final items = (response['data']['items'] as List<dynamic>);
       return items.map((json) => Complaint.fromJson(json as Map<String, dynamic>)).toList();
     } on ApiException catch (e) {
